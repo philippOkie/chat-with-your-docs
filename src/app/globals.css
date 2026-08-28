@@ -1000,6 +1000,7 @@ main {
 
 .chat-list-panel {
   border-right: 1px solid var(--line);
+  overflow-x: hidden;
 }
 
 .source-selection-panel {
@@ -1011,6 +1012,11 @@ main {
   display: flex;
   gap: 1rem;
   justify-content: space-between;
+  min-width: 0;
+}
+
+.chat-panel-heading > div {
+  min-width: 0;
 }
 
 .chat-panel-heading .kicker,
@@ -1063,6 +1069,7 @@ main {
   display: grid;
   gap: 0.45rem;
   margin-top: 1.6rem;
+  min-width: 0;
 }
 
 .chat-list > button {
@@ -1071,9 +1078,14 @@ main {
   border-radius: 13px;
   color: var(--ink);
   cursor: pointer;
+  display: block;
   font: inherit;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 0.85rem;
   text-align: left;
+  width: 100%;
 }
 
 .chat-list > button:hover {
@@ -1094,6 +1106,7 @@ main {
 .chat-list strong {
   font-size: 0.78rem;
   line-height: 1.35;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
