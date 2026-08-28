@@ -262,6 +262,7 @@ In addition, a real local integration run exercised HTTP → rewrite → query e
 - [Requirements traceability](docs/requirements-traceability.md)
 - [Manual RAG evaluation](docs/manual-evaluation.md)
 - [Implementation log](docs/implementation-log.md)
+- [Video presentation script](docs/video-presentation-script.md)
 - [`tests/`](tests/) — 30 automated tests across 10 files
 
 ## Engineering standards followed
@@ -301,13 +302,27 @@ AI-generated work was not accepted blindly. Examples of review and correction du
 
 My working rule for AI coding assistants here is: use them for breadth and iteration speed, but require typed boundaries, primary-source API checks, diffs, automated checks, live behavior, and explicit human ownership of product tradeoffs. I would not use model output as the authority for security, privacy, production capacity, or claimed evaluation quality.
 
+The main architecture and model choices were planned before implementation rather than reconstructed afterward for the README. Live testing still changed details where the evidence justified it—for example, the worker environment-loading fix, stricter citation presentation, and the rewrite-drift case recorded for future evaluation.
+
 ## Productionization plan
+
+My view is that this is a complete take-home application, but not yet a production service. The clearest infrastructure gap is file storage: uploaded documents currently live on a shared local volume. My first production change would be private S3 storage with presigned uploads, encryption, lifecycle and deletion policies, malware scanning, and tenant-aware object keys. This would remove the shared-filesystem dependency and let the web and worker containers scale independently.
+
+Caching is the other important missing layer. I would add it only with explicit privacy and invalidation rules:
+
+1. Cache immutable web assets at the edge and ordinary non-sensitive metadata for short periods.
+2. Reuse parsing and document embeddings by content hash, model, dimensions, and chunking-version key.
+3. Cache query embeddings and retrieval results with tenant ID, normalized query, selected-document IDs, document versions, model, and a bounded TTL in the key.
+4. Treat final-answer caching as optional. Document answers can be sensitive and become stale, so I would enable it only for an identical authorized source snapshot with encryption, a short TTL, and measurable benefit.
+
+Redis/ElastiCache is a reasonable shared cache when multiple web and worker instances exist, but adding it to this single-user demo would create invalidation and privacy complexity before it solves a measured problem.
 
 An AWS deployment is the concrete reference architecture:
 
 - Next.js web and separately scaled worker containers on ECS/Fargate behind an ALB.
 - RDS PostgreSQL with pgvector, encryption, backups, connection pooling, and measured HNSW tuning.
 - S3 for encrypted raw documents, lifecycle retention, malware scanning, and presigned uploads.
+- ElastiCache/Redis for bounded tenant-scoped metadata, embedding, and retrieval caches after measuring hit rates.
 - Secrets Manager for database and OpenAI credentials.
 - CloudWatch/OpenTelemetry logs, traces, metrics, dashboards, and alerts.
 - WAF and edge rate limits, plus tenant quotas in the application.
@@ -317,19 +332,21 @@ Application work before production:
 
 1. Add identity, organizations, tenant IDs on every row, authorization, audit logs, deletion/export, and retention policies.
 2. Add provider timeouts, bounded retry/backpressure, a dead-letter path, and recovery for abandoned streaming messages.
-3. Move files to object storage and add malware/content scanning.
-4. Build a representative evaluation set and run retrieval/answer checks for every model, prompt, and chunking change.
-5. Compare vector-only retrieval with PostgreSQL full-text hybrid search and reranking.
-6. Add user feedback tied to message/source IDs and use it to prioritize evaluation cases.
-7. Load-test ingestion throughput, concurrent SSE streams, connection pools, and pgvector latency.
-8. Add PII-aware telemetry rules, regional data-residency controls, and third-party processing documentation.
+3. Move files to S3 and add malware/content scanning, retention, deletion, and recovery workflows.
+4. Add content-hash reuse and tenant/document-version-scoped caches, then measure their cost and latency impact.
+5. Build a representative evaluation set and run retrieval/answer checks for every model, prompt, and chunking change.
+6. Compare vector-only retrieval with PostgreSQL full-text hybrid search and reranking.
+7. Add user feedback tied to message/source IDs and use it to prioritize evaluation cases.
+8. Load-test ingestion throughput, concurrent SSE streams, connection pools, cache behavior, and pgvector latency.
+9. Add PII-aware telemetry rules, regional data-residency controls, and third-party processing documentation.
 
 ## What I would do next
 
 1. Turn the observed manual cases—including rewrite drift and partial-evidence behavior—into a deterministic evaluation harness.
 2. Add hybrid PostgreSQL full-text/vector retrieval and measure recall before adopting it.
 3. Add reranking only if the evaluation shows top-k ordering, rather than generation, is the main failure source.
-4. Add authentication/tenant isolation and an object-storage deletion lifecycle.
-5. Add feedback capture and a small retrieval-inspector view for engineering diagnostics.
+4. Replace local files with private S3 storage and a complete object deletion lifecycle.
+5. Add tenant-scoped embedding and retrieval caching with explicit versioned invalidation.
+6. Add authentication/tenant isolation, feedback capture, and a small retrieval-inspector view for engineering diagnostics.
 
 See [docs/requirements-traceability.md](docs/requirements-traceability.md) for the assignment-to-implementation mapping and [docs/implementation-log.md](docs/implementation-log.md) for the phase record.

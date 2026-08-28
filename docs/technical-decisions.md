@@ -183,3 +183,13 @@ See [architecture.md](architecture.md) for the component diagram and end-to-end 
 **Alternative:** A large mocked end-to-end suite would be deterministic but would not validate provider/model behavior. A true evaluation harness is the highest-priority extension.
 
 **Accepted cost:** Current CI does not independently reproduce the live OpenAI evaluation without credentials and a database.
+
+## 19. Make cache identity and invalidation explicit before adding caching
+
+**Decision:** The demo does not add a generic application cache. Production caching should be introduced in layers: edge caching for immutable assets, content-hash reuse for parsing and document embeddings, then tenant-scoped query-embedding and retrieval caches keyed by the selected document versions and model configuration. Final-answer caching remains optional and requires an identical authorized source snapshot.
+
+**Why:** Documents and answers can be confidential and mutable. A cache that omits tenant, document-version, model, or chunking identity can return stale results or, worse, data from the wrong authorization scope. The invalidation contract matters more than adding Redis early.
+
+**Alternative:** Put Redis in front of the main endpoints immediately. That may improve repeated-request latency, but it adds another service and hides invalidation/privacy risks before the single-user demo has measured cache demand.
+
+**Accepted cost:** Repeated questions currently repeat query-embedding, retrieval, and answer-generation work. Production load tests should measure those costs and establish TTLs, size limits, encryption, and hit-rate targets before enabling shared caches.
