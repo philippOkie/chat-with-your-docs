@@ -2,7 +2,7 @@
 
 A full-stack document question-answering application built around a reusable document library, conversation-scoped retrieval, streamed answers, and inspectable source excerpts.
 
-The repository is currently at **Phase 1: Foundation**. It contains the application shell, PostgreSQL and pgvector schema, Drizzle migrations, pg-boss worker bootstrap, validated configuration, structured logging, and local Docker workflow. Document ingestion and chat features are the next implementation phases.
+The repository is currently at **Phase 2: Document library and ingestion**. It contains the application foundation plus validated PDF, TXT, and Markdown uploads, durable background processing, structure-aware chunking, batched OpenAI embeddings, pgvector persistence, live status updates, and safe retries. Chats and grounded answer streaming are the next implementation phases.
 
 ## Stack
 
@@ -10,7 +10,7 @@ The repository is currently at **Phase 1: Foundation**. It contains the applicat
 - PostgreSQL 17 with pgvector
 - Drizzle ORM and migrations
 - pg-boss for durable background jobs
-- OpenAI Responses API and embeddings (integration begins in Phase 2)
+- OpenAI SDK and `text-embedding-3-small` embeddings
 - Pino structured logging
 - Vitest, ESLint, and Prettier
 
@@ -23,7 +23,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The web application is available at [http://localhost:3000](http://localhost:3000). Its database-aware health endpoint is [http://localhost:3000/api/health](http://localhost:3000/api/health).
+The web application is available at [http://localhost:3000](http://localhost:3000). Open the document library at [http://localhost:3000/documents](http://localhost:3000/documents). The database and OpenAI configuration health endpoint is [http://localhost:3000/api/health](http://localhost:3000/api/health).
 
 The Compose stack starts three long-running services and one migration job:
 
@@ -47,7 +47,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Run `npm run worker:dev` in a second terminal when working on background ingestion.
+Run `npm run worker:dev` in a second terminal. The worker loads `.env`, watches for changes, and processes queued documents.
 
 Useful checks:
 
@@ -61,7 +61,7 @@ npm run build
 
 ## Configuration
 
-Copy `.env.example` to `.env`. The OpenAI API key is optional during Phase 1 so the local foundation can boot without making provider requests. It will be required at the model-call boundary when ingestion and chat are implemented.
+Copy `.env.example` to `.env`. The web application can boot without an OpenAI key, but document ingestion requires a server-side `OPENAI_API_KEY`. A missing or rejected key produces a safe failed-document state with a retry action; it is never exposed to the browser.
 
 The locked model defaults are:
 
@@ -84,6 +84,20 @@ shared file volume    <- web + worker
 
 Framework code will remain thin: route handlers validate HTTP boundaries, application services coordinate use cases, and adapters own external systems.
 
+## Document ingestion
+
+`POST /api/documents` accepts one multipart `file` and returns `202 Accepted`. The route verifies size, extension, MIME type, PDF signature or UTF-8 text, stores the raw file under a generated UUID key, creates a queued document, and publishes a document-scoped pg-boss job.
+
+The worker performs this idempotent pipeline:
+
+1. Transition `queued` or `failed` to `processing`.
+2. Extract page-aware PDF text, heading-aware Markdown sections, or TXT paragraphs.
+3. Build chunks with an 800-token maximum and overlap only for forced splits.
+4. Embed chunks in configurable batches using `text-embedding-3-small`.
+5. Replace existing chunks in one transaction and mark the document `ready`.
+
+The library polls `GET /api/documents` for live status changes. Failed documents can be requeued through `POST /api/documents/:id/retry`.
+
 ## Current scope
 
 Implemented:
@@ -95,12 +109,14 @@ Implemented:
 - Shared local storage volume
 - Environment validation and privacy-conscious JSON logs
 - Unit-test, formatting, linting, and type-check foundations
-
-Next:
-
 - PDF, TXT, and Markdown upload and parsing
 - Structure-aware chunking and batched embeddings
 - Document library processing states and retries
-- Chat creation, filtered retrieval, answer generation, streaming, and sources
+
+Next:
+
+- Chat creation and per-chat ready-document selection
+- Query rewriting and document-filtered vector retrieval
+- Answer generation, streaming, labelled general context, and exact source cards
 
 See [docs/implementation-log.md](docs/implementation-log.md) for implementation decisions and unresolved risks.

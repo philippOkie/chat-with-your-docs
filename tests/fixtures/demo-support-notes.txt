@@ -1,0 +1,5 @@
+Pilot support hours run from 08:00 to 20:00 UTC on weekdays.
+
+Critical incidents must be escalated to the on-call engineering lead.
+
+The response-time target for priority-one incidents is fifteen minutes.

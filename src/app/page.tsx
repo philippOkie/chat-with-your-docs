@@ -7,11 +7,11 @@ const milestones = [
     status: "Ready",
   },
   {
-    eyebrow: "Up next",
+    eyebrow: "Available now",
     title: "Document library",
     description:
       "Upload PDF, TXT, and Markdown files and follow each document from queued through ready or failed.",
-    status: "Phase 2",
+    status: "Ready",
   },
   {
     eyebrow: "Planned",
@@ -35,7 +35,7 @@ export default function Home() {
           <span>Chat With Your Docs</span>
         </a>
         <span className="phase-pill">
-          <span className="phase-dot" /> Phase 1
+          <span className="phase-dot" /> Phase 2
         </span>
       </nav>
 
@@ -52,8 +52,8 @@ export default function Home() {
             conversation, and understand where every grounded answer came from.
           </p>
           <div className="hero-actions">
-            <a className="primary-action" href="#roadmap">
-              View build roadmap
+            <a className="primary-action" href="/documents">
+              Open document library
               <span aria-hidden="true">→</span>
             </a>
             <a className="secondary-action" href="/api/health">

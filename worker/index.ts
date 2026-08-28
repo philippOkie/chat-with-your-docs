@@ -1,3 +1,6 @@
+import { ingestDocument } from "@/server/application/ingest-document";
+import { AppError } from "@/server/domain/errors";
+import type { IngestDocumentJobData } from "@/server/domain/documents";
 import { DOCUMENT_INGEST_QUEUE, createJobBoss } from "@/server/jobs/queue";
 import { logger } from "@/server/telemetry/logger";
 
@@ -21,10 +24,46 @@ async function main() {
     retryDelay: 5,
     retryLimit: 3,
   });
+  await boss.work<IngestDocumentJobData>(
+    DOCUMENT_INGEST_QUEUE,
+    { batchSize: 1, pollingIntervalSeconds: 1 },
+    async (jobs) => {
+      const job = jobs[0];
+      if (!job) return;
+
+      logger.info(
+        {
+          documentId: job.data.documentId,
+          jobId: job.id,
+          requestId: job.data.requestId,
+        },
+        "document ingestion job started",
+      );
+
+      try {
+        await ingestDocument(job.data.documentId, job.data.requestId);
+      } catch (error) {
+        if (error instanceof AppError && !error.retryable) {
+          logger.warn(
+            {
+              code: error.code,
+              documentId: job.data.documentId,
+              jobId: job.id,
+              requestId: job.data.requestId,
+            },
+            "document ingestion failed without retry",
+          );
+          return;
+        }
+
+        throw error;
+      }
+    },
+  );
 
   logger.info(
     { queue: DOCUMENT_INGEST_QUEUE },
-    "ingestion worker foundation is ready",
+    "document ingestion worker is ready",
   );
 }
 

@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
-
 import { pool } from "@/server/db/client";
+import { isOpenAIConfigured } from "@/server/jobs/document-ingestion";
+import { getRequestId } from "@/server/http/route-response";
 import { logger } from "@/server/telemetry/logger";
 
 export const dynamic = "force-dynamic";
@@ -8,11 +8,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const startedAt = performance.now();
-  const suppliedRequestId = request.headers.get("x-request-id");
-  const requestId =
-    suppliedRequestId && /^[A-Za-z0-9._:-]{1,128}$/.test(suppliedRequestId)
-      ? suppliedRequestId
-      : randomUUID();
+  const requestId = getRequestId(request);
 
   try {
     await pool.query("select 1");
@@ -22,7 +18,10 @@ export async function GET(request: Request) {
 
     return Response.json(
       {
-        checks: { database: "up" },
+        checks: {
+          database: "up",
+          openai: isOpenAIConfigured() ? "configured" : "not_configured",
+        },
         requestId,
         status: "ok",
       },
@@ -34,7 +33,10 @@ export async function GET(request: Request) {
 
     return Response.json(
       {
-        checks: { database: "down" },
+        checks: {
+          database: "down",
+          openai: isOpenAIConfigured() ? "configured" : "not_configured",
+        },
         requestId,
         status: "error",
       },
