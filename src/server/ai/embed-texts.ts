@@ -3,41 +3,16 @@ import { randomUUID } from "node:crypto";
 import { env } from "@/server/config/env";
 import { db } from "@/server/db/client";
 import { llmOperations } from "@/server/db/schema";
-import { AppError } from "@/server/domain/errors";
 import { logger } from "@/server/telemetry/logger";
 
 import { getOpenAIClient } from "./openai-client";
+import { toProviderError } from "./provider-error";
 
 type EmbedTextsInput = {
   documentId: string;
   requestId: string;
   texts: string[];
 };
-
-function toProviderError(error: unknown): AppError {
-  if (error instanceof AppError) return error;
-
-  const status =
-    typeof error === "object" && error && "status" in error
-      ? Number(error.status)
-      : undefined;
-  const retryable =
-    status === undefined ||
-    status === 408 ||
-    status === 409 ||
-    status === 429 ||
-    status >= 500;
-
-  return new AppError({
-    cause: error,
-    code: "PROVIDER_ERROR",
-    message: retryable
-      ? "OpenAI is temporarily unavailable. The document can be retried."
-      : "OpenAI rejected the embedding request. Check the API key and project access, then retry.",
-    retryable,
-    statusCode: retryable ? 503 : 400,
-  });
-}
 
 export async function embedTexts({
   documentId,
@@ -105,7 +80,10 @@ export async function embedTexts({
 
     return embeddings;
   } catch (error) {
-    const providerError = toProviderError(error);
+    const providerError = toProviderError(
+      error,
+      "OpenAI is temporarily unavailable. The document can be retried.",
+    );
     const latencyMs = Math.round(performance.now() - startedAt);
 
     try {

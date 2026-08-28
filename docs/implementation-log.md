@@ -57,6 +57,47 @@
 
 - Docker Desktop became reachable but its BuildKit storage returned an input/output error, then the database container command stalled. Development verification therefore uses the installed PostgreSQL + pgvector runtime on port 5432 while web and worker run from the repository. Compose configuration remains the intended one-command workflow once Docker Desktop storage is repaired.
 
-### Next checkpoint
+## 2026-08-28 — Phases 3–4 chats, retrieval, and streaming
 
-- Phase 3 adds chats, ready-document selection, standalone query rewriting, filtered cosine retrieval, and source metadata persistence. Phase 4 adds structured streaming answers and source cards.
+### Implemented
+
+- Added conversation creation, recent-chat listing, persisted history, and ready-document source selection with replacement between turns.
+- Added standalone follow-up rewriting with at most six recent messages. The first question deliberately skips the extra model call.
+- Added query embeddings and one SQL vector query that filters through the chat selection and ready document state before cosine ordering.
+- Added top-eight retrieval, exact/strong adjacent overlap removal, and a maximum six-chunk generation context.
+- Added a strict structured answer schema for grounded content, outside knowledge, answerability, and cited chunk IDs.
+- Added OpenAI Responses streaming with `store: false`. Partial JSON snapshots are decoded into separate answer/general deltas.
+- Added typed SSE stages, usage, sources, completion, and safe error events.
+- Added citation allowlisting and exact database-backed source cards for PDF pages, Markdown headings, and TXT paragraph ranges.
+- Added incomplete-stream persistence and retry UX.
+
+### Verification
+
+- Sent two real questions through HTTP, OpenAI, pgvector, persistence, and the source join. The direct question cited two launch-plan chunks; the conversational follow-up was rewritten and cited Markdown plus TXT evidence.
+- Confirmed query rewrite, retrieval, generation latency, TTFT, token usage, ranks, chunk IDs, and cosine distances in structured logs.
+- Confirmed no storage key, file hash, prompt, or raw secret is exposed by public chat/document responses.
+
+### Corrections from live review
+
+- The current GPT-5.6 API exposes `none` as its lowest reasoning effort; this is used for the narrow rewrite step in place of the plan's older “minimal” wording.
+- A general-context evaluation produced raw chunk IDs in grounded prose. The prompt was tightened to reserve IDs for the structured citation field and source cards.
+- The first chat UI rendered safe Markdown as plain text, exposing emphasis markers. A small React-only Markdown subset now renders bold, code, lists, and paragraphs without HTML injection.
+
+## 2026-08-28 — Phase 5 submission polish
+
+### Implemented
+
+- Completed the responsive three-panel conversation workspace, empty states, selection controls, streaming stages, exact expandable sources, labelled general context, keyboard composer, and retry state.
+- Added prompt, partial-stream decoding, schema, retrieval-policy, citation-validation, and source-location tests. The suite now contains 30 passing tests across ten files.
+- Ran the five required manual RAG cases plus one explicit general-context case and recorded observed output and latency in `docs/manual-evaluation.md`.
+- Captured desktop chat, document library, and 354 px responsive screenshots under `docs/screenshots/`.
+- Rewrote the README around the actual repository and assignment checklist.
+- Added the detailed technical decision record and requirements traceability matrix.
+
+### Remaining production risks
+
+- Query rewriting can drift on ambiguous meta-questions; the observed case should enter an automated rewrite evaluation set.
+- Vector-only retrieval and the absence of a distance threshold are conscious baselines, not proven optimal choices.
+- A process killed without application cleanup can leave a `streaming` message; production needs expiry/recovery.
+- Local filesystem storage, single-user scope, and missing auth/retention/malware controls are demo boundaries.
+- Docker Compose remains the intended workflow, but this host's Docker BuildKit storage fault required direct local PostgreSQL/pgvector verification.

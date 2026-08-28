@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type DocumentStatus = "failed" | "processing" | "queued" | "ready";
@@ -221,6 +222,16 @@ export function DocumentLibrary() {
             Refresh
           </button>
         </div>
+
+        {readyCount > 0 ? (
+          <div className="library-chat-cta">
+            <span>
+              {readyCount} ready source{readyCount === 1 ? " is" : "s are"}{" "}
+              available for grounded retrieval.
+            </span>
+            <Link href="/chats">Start a conversation →</Link>
+          </div>
+        ) : null}
 
         {isLoading ? (
           <div className="library-empty">Loading your documents…</div>

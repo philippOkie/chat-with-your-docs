@@ -40,10 +40,18 @@ const environmentSchema = z
       .int()
       .positive()
       .default(15 * 1024 * 1024),
+    MAX_QUESTION_CHARACTERS: z.coerce
+      .number()
+      .int()
+      .min(100)
+      .max(20_000)
+      .default(4_000),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
     OPENAI_API_KEY: optionalSecret,
+    GENERATION_MAX_CHUNKS: z.coerce.number().int().min(1).max(12).default(6),
+    RETRIEVAL_TOP_K: z.coerce.number().int().min(1).max(30).default(8),
     REWRITE_MODEL: z.string().min(1).default("gpt-5.6-luna"),
     SERVICE_NAME: z.string().min(1).default("web"),
     STORAGE_DIR: z.string().min(1).default("./data/uploads"),
@@ -62,6 +70,14 @@ const environmentSchema = z
         code: "custom",
         message: "CHUNK_MIN_TOKENS cannot exceed CHUNK_MAX_TOKENS",
         path: ["CHUNK_MIN_TOKENS"],
+      });
+    }
+
+    if (value.GENERATION_MAX_CHUNKS > value.RETRIEVAL_TOP_K) {
+      context.addIssue({
+        code: "custom",
+        message: "GENERATION_MAX_CHUNKS cannot exceed RETRIEVAL_TOP_K",
+        path: ["GENERATION_MAX_CHUNKS"],
       });
     }
   });

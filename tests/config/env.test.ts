@@ -12,7 +12,10 @@ describe("parseEnv", () => {
     expect(result.EMBEDDING_BATCH_SIZE).toBe(64);
     expect(result.EMBEDDING_DIMENSIONS).toBe(1536);
     expect(result.MAX_UPLOAD_BYTES).toBe(15 * 1024 * 1024);
+    expect(result.MAX_QUESTION_CHARACTERS).toBe(4_000);
     expect(result.OPENAI_API_KEY).toBeUndefined();
+    expect(result.GENERATION_MAX_CHUNKS).toBe(6);
+    expect(result.RETRIEVAL_TOP_K).toBe(8);
     expect(result.REWRITE_MODEL).toBe("gpt-5.6-luna");
   });
 
@@ -45,5 +48,11 @@ describe("parseEnv", () => {
     expect(() =>
       parseEnv({ CHUNK_MAX_TOKENS: "100", CHUNK_MIN_TOKENS: "101" }),
     ).toThrow("CHUNK_MIN_TOKENS cannot exceed");
+  });
+
+  it("keeps generation context within the retrieval candidate set", () => {
+    expect(() =>
+      parseEnv({ GENERATION_MAX_CHUNKS: "9", RETRIEVAL_TOP_K: "8" }),
+    ).toThrow("GENERATION_MAX_CHUNKS cannot exceed RETRIEVAL_TOP_K");
   });
 });

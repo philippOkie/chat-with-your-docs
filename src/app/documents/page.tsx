@@ -15,9 +15,10 @@ export default function DocumentsPage() {
           <span>Chat With Your Docs</span>
         </Link>
         <div className="library-nav-actions">
+          <Link href="/chats">Conversations</Link>
           <Link href="/">Overview</Link>
           <span className="phase-pill">
-            <span className="phase-dot" /> Phase 2
+            <span className="phase-dot" /> Complete
           </span>
         </div>
       </nav>

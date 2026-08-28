@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const milestones = [
   {
     eyebrow: "Available now",
@@ -14,11 +16,11 @@ const milestones = [
     status: "Ready",
   },
   {
-    eyebrow: "Planned",
+    eyebrow: "Available now",
     title: "Grounded conversations",
     description:
       "Select ready documents, ask conversational questions, and inspect exact source excerpts under every answer.",
-    status: "Phases 3–4",
+    status: "Ready",
   },
 ] as const;
 
@@ -35,7 +37,7 @@ export default function Home() {
           <span>Chat With Your Docs</span>
         </a>
         <span className="phase-pill">
-          <span className="phase-dot" /> Phase 2
+          <span className="phase-dot" /> Complete
         </span>
       </nav>
 
@@ -52,13 +54,13 @@ export default function Home() {
             conversation, and understand where every grounded answer came from.
           </p>
           <div className="hero-actions">
-            <a className="primary-action" href="/documents">
-              Open document library
+            <Link className="primary-action" href="/chats">
+              Start a grounded chat
               <span aria-hidden="true">→</span>
-            </a>
-            <a className="secondary-action" href="/api/health">
-              Check system health
-            </a>
+            </Link>
+            <Link className="secondary-action" href="/documents">
+              Open document library
+            </Link>
           </div>
         </div>
 
@@ -98,7 +100,7 @@ export default function Home() {
       <section className="roadmap" id="roadmap">
         <div className="section-heading">
           <p className="kicker">Build status</p>
-          <h2>A sturdy base before the clever parts.</h2>
+          <h2>The full evidence-to-answer loop.</h2>
         </div>
         <div className="milestone-grid">
           {milestones.map((milestone, index) => (
