@@ -90,18 +90,58 @@ The app can boot without an OpenAI key, but ingestion and chat calls return safe
 ## Architecture
 
 ```mermaid
-flowchart LR
-    UI[Next.js UI] --> HTTP[Route Handlers]
-    HTTP --> APP[Application services]
-    APP --> PG[(PostgreSQL + pgvector)]
-    APP --> OAI[OpenAI Responses + Embeddings]
-    HTTP --> FS[Local file store]
-    HTTP --> Q[pg-boss queue]
-    Q --> WORKER[Ingestion worker]
-    WORKER --> FS
-    WORKER --> OAI
-    WORKER --> PG
+flowchart TB
+    USER[Browser user]
+
+    subgraph WEB[Next.js web process]
+        UI[React interface]
+        HTTP[Route Handlers<br/>validation and SSE]
+        DOCS[Document application service]
+        CHAT[Chat orchestrator]
+        REWRITE[Follow-up rewrite]
+        RETRIEVE[Scoped vector retrieval]
+        ANSWER[Structured answer stream]
+
+        UI --> HTTP
+        HTTP --> DOCS
+        HTTP --> CHAT
+        CHAT --> REWRITE --> RETRIEVE --> ANSWER
+    end
+
+    subgraph WORKER[Ingestion worker process]
+        JOB[pg-boss consumer]
+        PARSE[PDF / Markdown / TXT parser]
+        CHUNK[Structure-aware chunker]
+        EMBED[Embedding batches]
+
+        JOB --> PARSE --> CHUNK --> EMBED
+    end
+
+    subgraph INFRA[Shared infrastructure]
+        DB[(PostgreSQL<br/>product data + pgvector)]
+        QUEUE[(pg-boss tables)]
+        FILES[(Local file store)]
+        OPENAI[OpenAI APIs<br/>Responses + embeddings]
+    end
+
+    USER --> UI
+    DOCS --> FILES
+    DOCS --> QUEUE
+    QUEUE --> JOB
+    JOB --> FILES
+    EMBED --> OPENAI
+    EMBED --> DB
+    HTTP --> DB
+    REWRITE --> OPENAI
+    RETRIEVE --> DB
+    RETRIEVE --> OPENAI
+    ANSWER --> OPENAI
+    ANSWER --> DB
+    ANSWER -. typed SSE events .-> UI
 ```
+
+The diagram separates runtime ownership from shared infrastructure. The detailed
+[architecture guide](docs/architecture.md) also shows the ingestion and grounded-answer sequences.
 
 This is one TypeScript repository with three independently runnable processes:
 
@@ -214,6 +254,15 @@ The logs deliberately favor operational metadata over content. The live fixture 
 - exact PDF/heading/paragraph source locations.
 
 In addition, a real local integration run exercised HTTP → rewrite → query embedding → pgvector → streamed Responses API → persistence → source join. The observed five-case matrix is recorded in [docs/manual-evaluation.md](docs/manual-evaluation.md). It is useful smoke evidence, not a statistical RAG benchmark.
+
+## Documentation map
+
+- [Architecture and request flows](docs/architecture.md)
+- [Technical decision record](docs/technical-decisions.md)
+- [Requirements traceability](docs/requirements-traceability.md)
+- [Manual RAG evaluation](docs/manual-evaluation.md)
+- [Implementation log](docs/implementation-log.md)
+- [`tests/`](tests/) — 30 automated tests across 10 files
 
 ## Engineering standards followed
 

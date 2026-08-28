@@ -2,6 +2,8 @@
 
 This document captures the decisions actually represented by the repository. Each entry records the reason, the main alternative, and the cost accepted; it is not a list of technologies after the fact.
 
+See [architecture.md](architecture.md) for the component diagram and end-to-end request sequences that these decisions produce.
+
 ## 1. One TypeScript codebase, separate runtime responsibilities
 
 **Decision:** Next.js App Router owns the UI and HTTP surface, while a separate Node process imports the same server modules for ingestion work.
