@@ -1,0 +1,100 @@
+name: chat-with-your-docs
+
+x-app-environment: &app-environment
+  DATABASE_URL: postgresql://postgres:postgres@db:5432/chat_with_your_docs
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANSWER_MODEL: ${ANSWER_MODEL:-gpt-5.6-terra}
+  REWRITE_MODEL: ${REWRITE_MODEL:-gpt-5.6-luna}
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+  EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+  STORAGE_DIR: /data/uploads
+  MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-15728640}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DB_POOL_MAX: ${DB_POOL_MAX:-10}
+
+x-app-build: &app-build
+  context: .
+  target: development
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.6-pg17-bookworm
+    environment:
+      POSTGRES_DB: chat_with_your_docs
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chat_with_your_docs"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  migrate:
+    build: *app-build
+    command: npm run db:migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *app-environment
+      SERVICE_NAME: migrate
+
+  web:
+    build: *app-build
+    command: npm run dev -- --hostname 0.0.0.0
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-environment
+      SERVICE_NAME: web
+      WATCHPACK_POLLING: "true"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    init: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+      - document_storage:/data/uploads
+
+  worker:
+    build: *app-build
+    command: npm run worker
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-environment
+      SERVICE_NAME: worker
+    init: true
+    stop_grace_period: 35s
+    volumes:
+      - .:/app
+      - worker_node_modules:/app/node_modules
+      - document_storage:/data/uploads
+
+volumes:
+  document_storage:
+  postgres_data:
+  web_node_modules:
+  worker_node_modules:

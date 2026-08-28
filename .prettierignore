@@ -1,0 +1,6 @@
+.next
+coverage
+data
+drizzle/meta
+node_modules
+package-lock.json

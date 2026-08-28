@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1787905826359,
+      "tag": "20260828083026_wide_magma",
+      "breakpoints": true
+    }
+  ]
+}
